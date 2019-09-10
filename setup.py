@@ -30,7 +30,9 @@ setup(
     keywords='discord bot preciousplastic',
     packages=find_packages(include=['plasticomatic']),
     python_requires='>=3.6, <4',
-    install_requires=[],
+    install_requires=[
+        "discord"
+    ],
     extras_require={
         'test': [
             'coverage',

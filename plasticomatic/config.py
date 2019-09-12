@@ -2,7 +2,7 @@
 CONFIGURATION = {
     "default": {
         "REGION_ROLE_COLOR": (46, 204, 113),  # Region role color (BE CAREFUL ABOUT THAT)
-        "GEOLOC_DISPLAY_CHANNEL": "beta_test",  # Channel where to display the member list per region
+        "GEOLOC_DISPLAY_CHANNEL": "géoloc",  # Channel where to display the member list per region
         "GEOLOC_INPUT_CHANNELS": ["*"],  # Channels where the !geoloc command will work, * will accept all channels
         "GEOLOC_REACT_EMOJI": "✅",  # Emoji used for registering into a new region
         "DISPLAY_EMPTY_REGION": False,  # Display region which contain no members

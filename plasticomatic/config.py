@@ -8,7 +8,7 @@ CONFIGURATION = {
         "DISPLAY_EMPTY_REGION": False,  # Display region which contain no members
         "MAX_USERS_PER_LINE": 3,  # Amount of users displayed per line in the region member list
         "DISPLAY_REGION_EMOJI": "🌍",  # The emoji displayed before the member list of a region
-        "RUN_SYNC_ON_STARTUP": False,  # Defines whether the bot should refresh all members per region on startup
+        "RUN_SYNC_ON_STARTUP": True,  # Defines whether the bot should refresh all members per region on startup
         "REMOVE_GEOLOCS_MESSAGES": True,  # Defines whether the bot should delete the !geoloc commands to avoid channel pollution
         "GEOLOC_COMMAND_NAME": "!geoloc",  # Defines the name of the geoloc command
     }

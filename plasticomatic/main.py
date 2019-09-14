@@ -2,6 +2,7 @@ import discord
 from discord import ChannelType
 import os
 import re
+import unidecode
 
 from plasticomatic.config import get_configuration
 
@@ -14,10 +15,31 @@ def get_region_list(guild):
             role_list.append(role.name)
     return role_list
 
+def transform_role_name(role_name):
+    transformed = unidecode.unidecode(role_name).lower()
+    transformed = re.sub(r'\s+', ' ', transformed).strip()
+    transformed = transformed.replace("\"", "").replace("'", "")
+    return transformed
 
-def get_needed_role(guild, role_name):
+def role_match(base_role_name, given_role_name):
+    if transform_role_name(base_role_name) == transform_role_name(given_role_name):
+        return True
+    else:
+        base_match = re.match(r"((?P<region_number>\d+)-)?(?P<region_name>\w+)", base_role_name)
+        transformed_base = transform_role_name(base_match.group("region_name"))
+        given_match_number = re.search(r"(?P<region_number>\d+)", given_role_name)
+        given_match_name = re.search(r"(?P<region_name>[a-zA-Z ]+)", transform_role_name(given_role_name))
+        if given_match_name and given_match_name.group("region_name") == transformed_base:
+            return True
+        elif "region_number" in base_match.groupdict() and "region_number" in given_match_number.groupdict():
+            if base_match.group("region_number") == given_match_number.group("region_number"):
+                return True
+
+def get_needed_role(guild, role_name, strict=True):
     for role in guild.roles:
-        if role.name == role_name:
+        if strict and role.name == role_name:
+            return role
+        elif not strict and role_match(role.name, role_name):
             return role
 
 
@@ -103,13 +125,13 @@ async def command_geoloc(self, message):
     ):
         if len(message.content.split()) >= 2:
             region_name = " ".join(message.content.split()[1::])
-            if region_name in get_region_list(message.guild):
+            strict_region_role = get_needed_role(message.guild, region_name, config["GEOLOC_STRICT_MATCH"])
+            if strict_region_role and strict_region_role.name in get_region_list(message.guild):
                 if has_user_role(message.author, region_name):
                     msg = await message.author.send(
                         f"Vous avez été retiré de la région : '{region_name}'"
                     )
-                    role = get_needed_role(message.guild, region_name)
-                    await message.author.remove_roles(role)
+                    await message.author.remove_roles(strict_region_role)
                     if config["REMOVE_GEOLOCS_MESSAGES"]:
                         await message.delete()
                     await refresh_geoloc_list(self, message.guild, region_name)
@@ -123,7 +145,7 @@ async def command_geoloc(self, message):
                         "author": message.author,
                         "channel": message.channel,
                         "message": msg,
-                        "region_name": region_name,
+                        "region_name": strict_region_role.name,
                     }
                     if config["REMOVE_GEOLOCS_MESSAGES"]:
                         await message.delete()

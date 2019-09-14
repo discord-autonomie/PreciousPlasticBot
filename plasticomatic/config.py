@@ -11,7 +11,8 @@ CONFIGURATION = {
         "RUN_SYNC_ON_STARTUP": True,  # Defines whether the bot should refresh all members per region on startup
         "REMOVE_GEOLOCS_MESSAGES": True,  # Defines whether the bot should delete the !geoloc commands to avoid channel pollution
         "GEOLOC_COMMAND_NAME": "!geoloc",  # Defines the name of the geoloc command
-        "GEOLOC_STRICT_MATCH": False  # Requires the region name to be exactly the same than the one defined in roles
+        "GEOLOC_STRICT_MATCH": False,  # Requires the region name to be exactly the same than the one defined in roles
+        "GEOLOC_ALLOW_CLUSTERS": True  # Allows a user to join a cluster of regions defined in regions_cluster.py
     }
 }
 

@@ -24,18 +24,17 @@ def transform_role_name(role_name):
     transformed = transformed.replace(" ", "_").replace("-", "_")
     return transformed
 
-
 def role_match(base_role_name, given_role_name):
     if transform_role_name(base_role_name) == transform_role_name(given_role_name):
         return True
     else:
         base_match = re.search(
-            r"((?P<region_number>\d+[ab]?)-)?(?P<region_name>\w+)", base_role_name
+            r"((?P<region_number>\d+[ab]?)-)?(?P<region_name>[\w-]+)", base_role_name
         )
         transformed_base = transform_role_name(base_match.group("region_name"))
         given_match_number = re.search(r"(?P<region_number>\d+[ab]?)", given_role_name)
         given_match_name = re.search(
-            r"(?P<region_name>[a-zA-Z ]+)", transform_role_name(given_role_name)
+            r"(?P<region_name>[a-zA-Z_ ]+)", transform_role_name(given_role_name)
         )
         if (
             given_match_name
@@ -269,7 +268,7 @@ class MyClient(discord.Client):
                 elif isinstance(region_name, list):
                     role_list = []
                     for dept in region_name:
-                        role = get_needed_role(guild, dept, strict=False, allowed_roles=get_region_list(guild))
+                        role = get_needed_role(guild, dept, strict=False)
                         role_list.append(role)
                     raw_data = "\n".join([f"- {role.name}" for role in role_list])
                     await user.send(

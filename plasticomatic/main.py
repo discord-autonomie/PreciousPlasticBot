@@ -289,7 +289,3 @@ def run():
         client.run(os.environ["DISCORD_TOKEN"])
     else:
         print("Missing DISCORD_TOKEN environment variable")
-
-
-if __name__ == "__main__":
-    run()

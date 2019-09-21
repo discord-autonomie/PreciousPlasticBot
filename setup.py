@@ -28,7 +28,7 @@ setup(
         'Programming Language :: Python :: 3.7',
     ],
     keywords='discord bot integration',
-    packages=find_packages(include=['plasticomatic']),
+    packages=find_packages(include=['botintegration']),
     python_requires='>=3.6, <4',
     install_requires=[
         "discord"
@@ -43,7 +43,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            "plasticomatic=plasticomatic.main:run"
+            "botintegration=botintegration.main:run"
         ],
     },
     project_urls={

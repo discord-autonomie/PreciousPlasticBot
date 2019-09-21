@@ -1,4 +1,4 @@
-FROM gorialis/discord.py
+FROM gorialis/discord.py:3.6-alpine-master-extras
 
 WORKDIR /app
 

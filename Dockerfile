@@ -7,4 +7,4 @@ RUN pip install -r setup.py
 
 COPY . .
 
-CMD ["python", "bot.py"]
+CMD ["python", "main.py"]

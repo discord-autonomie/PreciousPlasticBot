@@ -1,2 +1,2 @@
-# PreciousPlasticBot
-Discord bot for Precious Plastic France community
+# BotIntégration
+Discord bot for Autonomie

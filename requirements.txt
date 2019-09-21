@@ -1,1 +1,3 @@
+pip install unidecode
+
 -e git://github.com/discord-autonomie/BOT-integration#egg=BOT-integration

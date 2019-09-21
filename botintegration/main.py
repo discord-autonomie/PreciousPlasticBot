@@ -4,8 +4,8 @@ import os
 import re
 import unidecode
 
-from plasticomatic.config import get_configuration
-from plasticomatic.regions_cluster import REGIONS_CLUSTERS
+from botintegration.config import get_configuration
+from botintegration.regions_cluster import REGIONS_CLUSTERS
 
 
 def get_region_list(guild):

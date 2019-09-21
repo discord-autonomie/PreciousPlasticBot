@@ -1,4 +1,4 @@
-"""Discord bot for Precious Plastic France community
+"""Discord bot for Autonomie community
 """
 
 from setuptools import setup, find_packages
@@ -11,14 +11,14 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name='plasticomatic',
+    name='BOT-integration',
     version="1.0.0",
-    description='Discord bot for Precious Plastic France community',
+    description='Discord bot for Autonomie community',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/Sygmei/PreciousPlasticBot',
-    author='Sygmei',
-    author_email='sygmei@sygmei.io',
+    url='https://github.com/discord-autonomie/BOT-integration',
+    author='Sygmei/olaxe',
+    author_email='sygmei@sygmei.io/olaxe@pm.me',
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
@@ -27,7 +27,7 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
     ],
-    keywords='discord bot preciousplastic',
+    keywords='discord bot integration',
     packages=find_packages(include=['plasticomatic']),
     python_requires='>=3.6, <4',
     install_requires=[
@@ -47,7 +47,7 @@ setup(
         ],
     },
     project_urls={
-        'Bug Reports': 'https://github.com/Sygmei/PreciousPlasticBot/issues',
-        'Source': 'https://github.com/Sygmei/PreciousPlasticBot',
+        'Bug Reports': 'https://github.com/discord-autonomie/BOT-integration/issues',
+        'Source': 'https://github.com/discord-autonomie/BOT-integration',
     },
 )

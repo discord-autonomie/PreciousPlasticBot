@@ -2,8 +2,8 @@ FROM gorialis/discord.py
 
 WORKDIR /app
 
-COPY setup.py ./
-RUN pip install -r setup.py
+COPY requirements.txt ./
+RUN pip install -r requirements.txt
 
 COPY . .
 

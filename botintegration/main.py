@@ -4,7 +4,8 @@ import os
 import re
 import unidecode
 
-from botintegration.config import get_configuration
+
+from config import get_configuration
 from botintegration.regions_cluster import REGIONS_CLUSTERS
 
 
@@ -153,21 +154,21 @@ async def command_geoloc(self, message):
                 allowed_roles=region_list,
             )
             if strict_region_role and strict_region_role.name in region_list:
+                if config["REMOVE_NEWUSER_ROLE"] :
+                    role = discord.utils.find(lambda r: r.name == config["NEWUSER_ROLE_NAME"], message.guild.roles)
+                    if role :
+                        if has_user_role(message.author, role.name): await message.author.remove_roles(role)
+                    else :
+                        print ("Error: wrong NEWUSER_ROLE_NAME")
+
                 if has_user_role(message.author, strict_region_role.name):
-                    msg = await message.author.send(
-                        f"Vous avez été retiré du département : '{strict_region_role.name}'"
-                    )
+                    msg = await message.author.send(f"Vous avez été retiré du département : '{strict_region_role.name}'")
                     await message.author.remove_roles(strict_region_role)
-                    if config["REMOVE_GEOLOCS_MESSAGES"]:
-                        await message.delete()
-                    await refresh_geoloc_list(
-                        self, message.guild, strict_region_role.name
-                    )
+                    if config["REMOVE_GEOLOCS_MESSAGES"]:  await message.delete()
+                    await refresh_geoloc_list(self, message.guild, strict_region_role.name)
                 else:
                     react_emoji = config["GEOLOC_REACT_EMOJI"]
-                    msg = await message.author.send(
-                        f"Cliquez sur {react_emoji} pour rejoindre le département : '{strict_region_role.name}'"
-                    )
+                    msg = await message.author.send(f"Cliquez sur {react_emoji} pour rejoindre le département : '{strict_region_role.name}'")
                     await msg.add_reaction(f"{react_emoji}")
                     self.msg_watcher[msg.id] = {
                         "author": message.author,
@@ -177,12 +178,8 @@ async def command_geoloc(self, message):
                     }
                     if config["REMOVE_GEOLOCS_MESSAGES"]:
                         await message.delete()
-            elif config["GEOLOC_ALLOW_CLUSTERS"] and transform_role_name(
-                region_name
-            ) in [
-                transform_role_name(cluster_name)
-                for cluster_name in REGIONS_CLUSTERS.keys()
-            ]:
+
+            elif config["GEOLOC_ALLOW_CLUSTERS"] and transform_role_name(region_name) in [transform_role_name(cluster_name) for cluster_name in REGIONS_CLUSTERS.keys()]:
                 real_region_name = [
                     transform_role_name(cluster_name)
                     for cluster_name in REGIONS_CLUSTERS.keys()
@@ -206,25 +203,15 @@ async def command_geoloc(self, message):
                 if config["REMOVE_GEOLOCS_MESSAGES"]:
                     await message.delete()
             else:
-                await message.channel.send(
-                    "Localisation inexistante ! Si la localisation qui vous intéresse n'existe pas, n'hésitez pas à demander sa création"
-                )
+                await message.channel.send("Localisation inexistante ! Si la localisation qui vous intéresse n'existe pas, n'hésitez pas à demander sa création")
         else:
             region_list = get_region_list(message.guild)
             raw_data = "\n".join([f"- {region_name}" for region_name in region_list])
-            await message.author.send(
-                f"Tapez `{config['GEOLOC_COMMAND_NAME']} Nom département / région` pour rejoindre une région spécifique"
-            )
-            await message.author.send(
-                f"Départements disponibles :\n```\n{raw_data}\n```"
-            )
+            await message.author.send(f"Tapez `{config['GEOLOC_COMMAND_NAME']} Nom département / région` pour rejoindre une région spécifique")
+            await message.author.send(f"Départements disponibles :\n```\n{raw_data}\n```")
             if config["GEOLOC_ALLOW_CLUSTERS"]:
-                raw_data = "\n".join(
-                    [f"- {cluster_name}" for cluster_name in REGIONS_CLUSTERS]
-                )
-                await message.author.send(
-                    f"Régions disponibles :\n```\n{raw_data}\n```"
-                )
+                raw_data = "\n".join([f"- {cluster_name}" for cluster_name in REGIONS_CLUSTERS])
+                await message.author.send(f"Régions disponibles :\n```\n{raw_data}\n```")
 
             if config["REMOVE_GEOLOCS_MESSAGES"]:
                 await message.delete()
@@ -233,18 +220,19 @@ async def command_geoloc(self, message):
 class MyClient(discord.Client):
     async def on_ready(self):
         print("Logged on as", self.user)
+        print (get_configuration("default"))
         self.msg_watcher = {}
         for guild in self.guilds:
             if get_configuration(guild.id)["RUN_SYNC_ON_STARTUP"]:
                 await refresh_geoloc_list(self, guild)
 
     async def on_message(self, message):
-        print(message.content)
+        #print(message.content)
         config = None
         if message.guild:
             config = get_configuration(message.guild.id)
-        if message.author == self.user:
-            print(message, message.content)
+        #if message.author == self.user:
+            #print(message, message.content)
         if config:
             geoloc_command = config["GEOLOC_COMMAND_NAME"]
             if message.content.startswith(geoloc_command):
@@ -260,9 +248,7 @@ class MyClient(discord.Client):
                 region_name = data["region_name"]
                 if isinstance(region_name, str):
                     role = get_needed_role(guild, region_name)
-                    await user.send(
-                        f"Bien compris, vous avez rejoint le département '{region_name}'"
-                    )
+                    await user.send(f"Bien compris, vous avez rejoint le département '{region_name}'")
                     await member.add_roles(role)
                     await refresh_geoloc_list(self, guild, region_name)
                 elif isinstance(region_name, list):
@@ -271,9 +257,7 @@ class MyClient(discord.Client):
                         role = get_needed_role(guild, dept, strict=False)
                         role_list.append(role)
                     raw_data = "\n".join([f"- {role.name}" for role in role_list])
-                    await user.send(
-                        f"Bien compris, vous avez rejoint les départements suivants :\n```\n{raw_data}\n```"
-                    )
+                    await user.send(f"Bien compris, vous avez rejoint les départements suivants :\n```\n{raw_data}\n```")
                     await member.add_roles(*role_list)
                     for role in role_list:
                         await refresh_geoloc_list(self, guild, role.name)
@@ -283,9 +267,8 @@ class MyClient(discord.Client):
 
 
 
-def run():
-    client = MyClient()
-    if "DISCORD_TOKEN" in os.environ:
-        client.run(os.environ["DISCORD_TOKEN"])
-    else:
-        print("Missing DISCORD_TOKEN environment variable")
+client = MyClient()
+if "DISCORD_TOKEN" in os.environ:
+    client.run(os.environ["DISCORD_TOKEN"])
+else:
+    print("Missing DISCORD_TOKEN environment variable")

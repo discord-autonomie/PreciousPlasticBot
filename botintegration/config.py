@@ -13,8 +13,9 @@ CONFIGURATION = {
         "GEOLOC_COMMAND_NAME": "!geoloc",    # Defines the name of the geoloc command
         "GEOLOC_STRICT_MATCH": False,        # Requires the region name to be exactly the same than the one defined in roles
         "GEOLOC_ALLOW_CLUSTERS": True,       # Allows a user to join a cluster of regions defined in regions_cluster.py
+        "ADD_NEWUSER_ROLE": True,             # Allows to add a role to new users
         "REMOVE_NEWUSER_ROLE": True,         # Allows to remove a role when adding a new region
-        "NEWUSER_ROLE_NAME": "Arrivants"     # Selects the right role to remove
+        "NEWUSER_ROLE_NAME": "Arrivants"     # Selects the right role to add/remove
     }
 }
 

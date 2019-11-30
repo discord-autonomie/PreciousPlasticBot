@@ -265,6 +265,16 @@ class MyClient(discord.Client):
                     raise RuntimeError(f"Invalid value for region_name : {region_name}")
                 self.msg_watcher.pop(reaction.message.id)
 
+    async def on_member_join(self, member):
+        config = get_configuration(member.guild.id)
+        if config["ADD_NEWUSER_ROLE"] :
+            role = discord.utils.find(lambda r: r.name == config["NEWUSER_ROLE_NAME"], member.guild.roles)
+            if role :
+                if not has_user_role(member, role.name): await member.add_roles(role)
+            else :
+                print ("Error: wrong NEWUSER_ROLE_NAME")
+
+
 
 
 client = MyClient()

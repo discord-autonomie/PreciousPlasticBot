@@ -1,8 +1,10 @@
+import asyncio
 import discord
 from discord import ChannelType
 import os
 import re
 import unidecode
+import json
 
 
 from config import get_configuration
@@ -29,18 +31,11 @@ def role_match(base_role_name, given_role_name):
     if transform_role_name(base_role_name) == transform_role_name(given_role_name):
         return True
     else:
-        base_match = re.search(
-            r"((?P<region_number>\d+[ab]?)-)?(?P<region_name>[\w-]+)", base_role_name
-        )
+        base_match = re.search(r"((?P<region_number>\d+[ab]?)-)?(?P<region_name>[\w-]+)", base_role_name)
         transformed_base = transform_role_name(base_match.group("region_name"))
         given_match_number = re.search(r"(?P<region_number>\d+[ab]?)", given_role_name)
-        given_match_name = re.search(
-            r"(?P<region_name>[a-zA-Z_ ]+)", transform_role_name(given_role_name)
-        )
-        if (
-            given_match_name
-            and given_match_name.group("region_name") == transformed_base
-        ):
+        given_match_name = re.search(r"(?P<region_name>[a-zA-Z_ ]+)", transform_role_name(given_role_name))
+        if given_match_name and given_match_name.group("region_name") == transformed_base :
             return True
         elif (
             base_match
@@ -49,9 +44,7 @@ def role_match(base_role_name, given_role_name):
             and "region_number" in given_match_number.groupdict()
         ):
             print(base_match.groupdict())
-            if base_match.group("region_number").lstrip(
-                "0"
-            ) == given_match_number.group("region_number").lstrip("0"):
+            if base_match.group("region_number").lstrip("0") == given_match_number.group("region_number").lstrip("0"):
                 return True
 
 
@@ -73,10 +66,7 @@ def has_user_role(member, role_name):
 
 def is_channel_allowed_for_command(channel):
     config = get_configuration(channel.guild.id)
-    if (
-        channel.name in config["GEOLOC_INPUT_CHANNELS"]
-        or "*" in config["GEOLOC_INPUT_CHANNELS"]
-    ):
+    if channel.name in config["GEOLOC_INPUT_CHANNELS"] or "*" in config["GEOLOC_INPUT_CHANNELS"] :
         return True
     else:
         return False
@@ -101,27 +91,24 @@ def generate_region_user_list(guild, region_name):
 
 async def refresh_geoloc_list(self, guild, refresh_region=None):
     config = get_configuration(guild.id)
-    display_channel = next(
-        filter(
-            lambda channel: channel.name == config["GEOLOC_DISPLAY_CHANNEL"],
-            guild.text_channels,
-        )
-    )
+    admin = self.get_user(config["ADMIN_ID"])
+
+    display_channel = discord.utils.find(lambda m: m.name == config["GEOLOC_DISPLAY_CHANNEL"], guild.channels)
+
+    if display_channel == None :
+        amdin.send("Erreur: je ne peux pas afficher la liste dans *"+config["GEOLOC_DISPLAY_CHANNEL"]+"* car le salon n'existe pas.")
+        return
+
+
     region_emoji = config["DISPLAY_REGION_EMOJI"]
     region_list = get_region_list(guild)
-    async for message in display_channel.history(
-        limit=len(region_list) + 20, oldest_first=True
-    ):
+    async for message in display_channel.history(limit=len(region_list) + 20, oldest_first=True):
         if message.author.id == self.user.id:
             if message.content.startswith(region_emoji):
-                res = re.match(
-                    f"{region_emoji}\s(?P<region_name>[^\\n]+)\\n", message.content
-                )
+                res = re.match(f"{region_emoji}\s(?P<region_name>[^\\n]+)\\n", message.content)
                 if res:
                     region_name = res.groupdict()["region_name"]
-                    if region_name in region_list and (
-                        refresh_region is None or region_name == refresh_region
-                    ):
+                    if region_name in region_list and (refresh_region is None or region_name == refresh_region):
                         region_user_msg = generate_region_user_list(guild, region_name)
                         if region_user_msg:
                             print("Editing region", region_name)
@@ -139,82 +126,113 @@ async def refresh_geoloc_list(self, guild, refresh_region=None):
                 print("Ignore empty region", region)
 
 
-async def command_geoloc(self, message):
-    config = get_configuration(message.guild.id)
-    if message.channel.type == ChannelType.text and is_channel_allowed_for_command(
-        message.channel
-    ):
-        if len(message.content.split()) >= 2:
-            region_name = " ".join(message.content.split()[1::])
-            region_list = get_region_list(message.guild)
-            strict_region_role = get_needed_role(
-                message.guild,
-                region_name,
-                strict=config["GEOLOC_STRICT_MATCH"],
-                allowed_roles=region_list,
-            )
-            if strict_region_role and strict_region_role.name in region_list:
+async def add_user_region(self, member, first_time=False):
+    config = get_configuration(member.guild.id)
+    departements = json.loads(open("departements.json").read())                                                  
+    regions = json.loads(open("regions.json").read())
+
+    admin = self.get_user(config["ADMIN_ID"])  # Titou : 499530093539098624
+
+    if first_time :
+        await member.send("Salut et bienvenue sur le serveur **Réseautonome** ! Je suis le robot chargé de l'accueil des nouveaux. Pour pouvoir accéder au serveur tu vas devoir me dire où tu habites et si tu es mineur ou majeur.")
+
+    await member.send("Envoie moi le numéro de ton département (99 si tu es étranger) :")
+
+    def check(m): return m.author == member
+    rep = await client.wait_for('message', check=check)
+    print (rep.content)
+
+    code = rep.content.upper()
+    if len(code) == 1 : code = "0"+code
+
+    while code not in departements and code != "99" :
+        await member.send("Je ne connais pas ce numéro. Envoies `99` si tu es étranger sinon voici les numéros de départements français : "+", ".join(departements.keys()))
+
+        rep = await client.wait_for('message', check=check)
+        print (rep.content)
+        code = rep.content.upper()
+        if len(code) == 1 : code = "0"+code
+
+    if code == "99" :
+        txt = "L'utilisateur "+member.name+" me dit qu'il est étranger, je te laisse lui mettre le bon rôle."
+        print(txt)
+        
+        await admin.send(txt) 
+
+    else :
+        departement = departements[code]
+        region = regions[departement["region_code"]]
+        txt = "Je vais t'ajouter les rôles suivants :\nDépartement : **"+departement["name"]+"**\nRégion : **"+region["name"]+"**\nUtilise les réactions pour me dire si tu es d'accord."
+        msg = await member.send(txt)
+        reacts = ["\N{WHITE HEAVY CHECK MARK}", "\N{CROSS MARK}"]
+        for r in reacts : await msg.add_reaction(r)
+
+        def check(reaction, user):
+            return user == member and str(reaction.emoji) in reacts
+
+        try:
+            reaction, user = await client.wait_for('reaction_add', timeout=60.0, check=check)
+            if str(reaction.emoji) == "\N{WHITE HEAVY CHECK MARK}" :
+
+                for role in member.roles :
+                    if role.color.to_rgb() == config["REGION_ROLE_COLOR"] :
+                        await member.remove_roles(role)
+                        await refresh_geoloc_list(self, member.guild, refresh_region=role.name)
+
+                    if role.color.to_rgb() == config["DEPARTEMENT_ROLE_COLOR"]:
+                        await member.remove_roles(role)
+
+
+                role = discord.utils.find(lambda r: r.name == config["CONFIRMED_ROLE_NAME"], member.guild.roles)
+                if role : await member.add_roles(role)
+                else : await admin.send("Erreur: le rôle "+config["CONFIRMED_ROLE_NAME"]+" n'existe plus donc je ne peux plus le donner...")
+
+                name = code+" - "+departement["name"]
+                role = discord.utils.find(lambda r: r.name == name, member.guild.roles)
+                if role : await member.add_roles(role)
+                else : await admin.send("Erreur, je n'ai pas pu ajouter le rôle *"+name+"* à "+member.name+" car le rôle ne semble pas exister.")
+
+
+                role = discord.utils.find(lambda r: r.name == region["name"], member.guild.roles)
+                if role :
+                    await member.add_roles(role)
+                    await refresh_geoloc_list(self, member.guild, refresh_region=region["name"])
+                else : await admin.send("Erreur, je n'ai pas pu ajouter le rôle *"+region["name"]+"* à "+member.name+" car le rôle ne semble pas exister.")
+
                 if config["REMOVE_NEWUSER_ROLE"] :
-                    role = discord.utils.find(lambda r: r.name == config["NEWUSER_ROLE_NAME"], message.guild.roles)
+                    role = discord.utils.find(lambda r: r.name == config["NEWUSER_ROLE_NAME"], member.guild.roles)
                     if role :
-                        if has_user_role(message.author, role.name): await message.author.remove_roles(role)
-                    else :
-                        print ("Error: wrong NEWUSER_ROLE_NAME")
+                        if has_user_role(member, role.name):
+                            await member.remove_roles(role)
+                    else : await admin.send("Erreur: le rôle "+config["NEWUSER_ROLE_NAME"]+" n'existe plus ou a changé de nom")
 
-                if has_user_role(message.author, strict_region_role.name):
-                    msg = await message.author.send(f"Vous avez été retiré du département : '{strict_region_role.name}'")
-                    await message.author.remove_roles(strict_region_role)
-                    if config["REMOVE_GEOLOCS_MESSAGES"]:  await message.delete()
-                    await refresh_geoloc_list(self, message.guild, strict_region_role.name)
-                else:
-                    react_emoji = config["GEOLOC_REACT_EMOJI"]
-                    msg = await message.author.send(f"Cliquez sur {react_emoji} pour rejoindre le département : '{strict_region_role.name}'")
-                    await msg.add_reaction(f"{react_emoji}")
-                    self.msg_watcher[msg.id] = {
-                        "author": message.author,
-                        "guild": message.guild,
-                        "message": msg,
-                        "region_name": strict_region_role.name,
-                    }
-                    if config["REMOVE_GEOLOCS_MESSAGES"]:
-                        await message.delete()
+                await member.send("OK maintenant envoies moi `mineur` si tu as moins de 18 ans et `majeur` si tu as 18 ans ou plus :")
+                def check(m): return m.author == member
+                rep = await client.wait_for('message', check=check)
+                while rep.content.lower() != "mineur" and rep.content.lower() != "majeur" :
+                    await member.send("Je n'ai pas compris tu peux juste écrire `mineur` ou `majeur` stp.")
+                    rep = await client.wait_for('message', check=check)
+                role = discord.utils.find(lambda r: r.name == config["YOUNG_ROLE_NAME"], member.guild.roles)
+                if role :
+                    if rep.content.lower() == "mineur" : await member.add_roles(role)
+                    elif role in member.roles : await member.remove_roles(role)
+                    
+                else : await admin.send("Erreur, je n'ai pas pu ajouter le rôle *"+config["YOUNG_ROLE_NAME"]+"* à "+member.name+" car le rôle ne semble pas exister.")
 
-            elif config["GEOLOC_ALLOW_CLUSTERS"] and transform_role_name(region_name) in [transform_role_name(cluster_name) for cluster_name in REGIONS_CLUSTERS.keys()]:
-                real_region_name = [
-                    transform_role_name(cluster_name)
-                    for cluster_name in REGIONS_CLUSTERS.keys()
-                ].index(transform_role_name(region_name))
-                real_region_name = list(REGIONS_CLUSTERS.keys())[real_region_name]
-                react_emoji = config["GEOLOC_REACT_EMOJI"]
-                dept_list = "\n".join([
-                    f"- {dept_name}" for dept_name in REGIONS_CLUSTERS[real_region_name]
-                ])
-                msg = await message.author.send(
-                    f"Cliquez sur {react_emoji} pour rejoindre la région : '{real_region_name}'\n"
-                    f"Cette action vous fera rejoindre les départements suivants :\n```\n{dept_list}\n```"
-                )
-                await msg.add_reaction(f"{react_emoji}")
-                self.msg_watcher[msg.id] = {
-                    "author": message.author,
-                    "guild": message.guild,
-                    "message": msg,
-                    "region_name": REGIONS_CLUSTERS[real_region_name],
-                }
-                if config["REMOVE_GEOLOCS_MESSAGES"]:
-                    await message.delete()
-            else:
-                await message.channel.send("Localisation inexistante ! Si la localisation qui vous intéresse n'existe pas, n'hésitez pas à demander sa création")
-        else:
-            region_list = get_region_list(message.guild)
-            raw_data = "\n".join([f"- {region_name}" for region_name in region_list])
-            await message.author.send(f"Tapez `{config['GEOLOC_COMMAND_NAME']} Nom département / région` pour rejoindre une région spécifique")
-            await message.author.send(f"Départements disponibles :\n```\n{raw_data}\n```")
-            if config["GEOLOC_ALLOW_CLUSTERS"]:
-                raw_data = "\n".join([f"- {cluster_name}" for cluster_name in REGIONS_CLUSTERS])
-                await message.author.send(f"Régions disponibles :\n```\n{raw_data}\n```")
+                
 
-            if config["REMOVE_GEOLOCS_MESSAGES"]:
-                await message.delete()
+                await member.send("C'est tout bon tu peux accéder joyeusement au serveur !")
+
+            else :
+                await admin.send(member.name+" a l'air de galérer avec avec l'ajout de rôle, tu peux peut être voir pour l'aider si dans quelques minutes il n'a toujours pas de rôle")
+                await member.send("Bon OK je on recommence. Si vraiment tu galères tu peux contacter Titou#3777 qui est l'administrateur.")
+                await add_user_region(self, member)
+
+        except asyncio.TimeoutError:
+            await admin.send(member.name+" a l'air de galérer avec avec l'ajout de rôle, tu peux peut être voir pour l'aider si dans quelques minutes il n'a toujours pas de rôle")
+            await member.send("Bon OK je te propose de repartir de zéro. Si vraiment tu galères tu peux contacter Titou#3777 qui est l'administrateur.")
+            await add_user_region(self, member)
+
 
 
 class MyClient(discord.Client):
@@ -236,43 +254,22 @@ class MyClient(discord.Client):
         if config:
             geoloc_command = config["GEOLOC_COMMAND_NAME"]
             if message.content.startswith(geoloc_command):
-                await command_geoloc(self, message)
-
-    async def on_reaction_add(self, reaction, user):
-        if reaction.message.id in self.msg_watcher:
-            data = self.msg_watcher[reaction.message.id]
-            member = data["author"]
-            guild = data["guild"]
-            react_emoji = get_configuration(guild.id)["GEOLOC_REACT_EMOJI"]
-            if reaction.emoji == react_emoji and user == member:
-                region_name = data["region_name"]
-                if isinstance(region_name, str):
-                    role = get_needed_role(guild, region_name)
-                    await user.send(f"Bien compris, vous avez rejoint le département '{region_name}'")
-                    await member.add_roles(role)
-                    await refresh_geoloc_list(self, guild, region_name)
-                elif isinstance(region_name, list):
-                    role_list = []
-                    for dept in region_name:
-                        role = get_needed_role(guild, dept, strict=False)
-                        role_list.append(role)
-                    raw_data = "\n".join([f"- {role.name}" for role in role_list])
-                    await user.send(f"Bien compris, vous avez rejoint les départements suivants :\n```\n{raw_data}\n```")
-                    await member.add_roles(*role_list)
-                    for role in role_list:
-                        await refresh_geoloc_list(self, guild, role.name)
-                else:
-                    raise RuntimeError(f"Invalid value for region_name : {region_name}")
-                self.msg_watcher.pop(reaction.message.id)
+                await add_user_region(self, message.author)
+                if config["REMOVE_GEOLOCS_MESSAGES"]:  await message.delete()
 
     async def on_member_join(self, member):
         config = get_configuration(member.guild.id)
+        admin = self.get_user(config["ADMIN_ID"])  
+
         if config["ADD_NEWUSER_ROLE"] :
             role = discord.utils.find(lambda r: r.name == config["NEWUSER_ROLE_NAME"], member.guild.roles)
             if role :
                 if not has_user_role(member, role.name): await member.add_roles(role)
             else :
-                print ("Error: wrong NEWUSER_ROLE_NAME")
+                admin.send("Ereur: le rôle "+config["NEWUSER_ROLE_NAME"]+" n'existe plus ou a changé de nom.")
+
+        await add_user_region(self, member, first_time=True)
+
 
 
 

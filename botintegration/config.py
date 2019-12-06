@@ -16,10 +16,11 @@ CONFIGURATION = {
         "GEOLOC_ALLOW_CLUSTERS": True,              # Allows a user to join a cluster of regions defined in regions_cluster.py
         "ADD_NEWUSER_ROLE": True,                   # Allows to add a role to new users
         "REMOVE_NEWUSER_ROLE": True,                # Allows to remove a role when adding a new region
-        "NEWUSER_ROLE_NAME": "Arrivants",           # Selects the right role to add/remove
+        "NEWUSER_ROLE_NAME": "Arrivant",            # Selects the right role to add/remove
         "CONFIRMED_ROLE_NAME": "Autonomie",     
         "YOUNG_ROLE_NAME": "Jeunes -18 ans",        
-        "ADMIN_ID": 321675705010225162              # To Mp in case of a problem
+        "ADMIN_ID": 499530093539098624,             # To MP in case of a problem
+        "MODO_CHANNEL": "infos-modérateur"
     }
 }
 

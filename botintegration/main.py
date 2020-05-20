@@ -167,9 +167,6 @@ async def set_user_region(self, member, first_time=False):
                     if role.color.to_rgb() == config["DEPARTEMENT_ROLE_COLOR"]:
                         await member.remove_roles(role)
 
-                role = discord.utils.find(lambda r: r.name == config["CONFIRMED_ROLE_NAME"], member.guild.roles)
-                if role : await member.add_roles(role)
-                else : await contact_modos(self, member.guild, "Erreur: le rôle "+config["CONFIRMED_ROLE_NAME"]+" n'existe plus donc je ne peux plus le donner...")
                 right_role = None
                 for role in member.guild.roles :
                     if role.name.startswith(code) : right_role = role
@@ -205,7 +202,22 @@ async def set_user_region(self, member, first_time=False):
                 else :
                     await contact_modos(self, member.guild, "Erreur, je n'ai pas pu ajouter le rôle *"+config["YOUNG_ROLE_NAME"]+"* à "+member.name+" car le rôle ne semble pas exister.")
 
+                confirmedRole = discord.utils.find(lambda r: r.name == config["CONFIRMED_ROLE_NAME"], member.guild.roles)
+                if not confirmedRole :
+                    await contact_modos(self, member.guild, "Erreur: le rôle "+config["CONFIRMED_ROLE_NAME"]+" n'existe plus donc je ne peux plus le donner...")
+                else :
+                    if not confirmedRole in member.roles :
+                        await member.add_roles(confirmedRole)
+                        if config["WELCOME_ANOUNCE"] :
+                            chan = discord.utils.find(lambda c: c.name == config["WELCOME_CHANNEL"], member.guild.channels)
+                            if chan :
+                                await chan.send("Bienvenue à "+member.mention)
+                            else :
+                                await contact_modos("Erreur: le salon **"+config["WELCOME_CHANNEL"]+"** n'existe pas pour dire bienvenue.")
+
+
                 await member.send("C'est tout bon, tu peux accéder au serveur !")
+
 
             else :
                 await contact_modos(self, member.guild, member.mention+" a l'air de galérer avec avec l'ajout de rôle, vous pouvez peut-être voir pour l'aider si dans quelques minutes il n'a toujours pas de rôle")

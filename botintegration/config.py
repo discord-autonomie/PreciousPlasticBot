@@ -16,7 +16,7 @@ CONFIGURATION = {
         "CONFIRMED_ROLE_NAME": "Autonomie",     
         "YOUNG_ROLE_NAME": "Jeunes -18 ans",        
         "ADMIN_ID": 321675705010225162,             # To MP in case of a problem
-        "MODO_CHANNEL": "infos-modérateur",
+        "MODO_CHANNEL": "infos-modérateurs",
         "MODO_ROLE": "Modérateurs"
     }
 }

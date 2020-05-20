@@ -18,47 +18,11 @@ def get_region_list(guild):
     return role_list
 
 
-def transform_role_name(role_name):
-    transformed = unidecode.unidecode(role_name).lower()
-    transformed = re.sub(r"\s+", " ", transformed).strip()
-    transformed = transformed.replace('"', "").replace("'", "")
-    transformed = transformed.replace(" ", "_").replace("-", "_")
-    return transformed
-
-
-def role_match(base_role_name, given_role_name):
-    if transform_role_name(base_role_name) == transform_role_name(given_role_name):
-        return True
-    else:
-        base_match = re.search(r"((?P<region_number>\d+[ab]?)-)?(?P<region_name>[\w-]+)", base_role_name)
-        transformed_base = transform_role_name(base_match.group("region_name"))
-        given_match_number = re.search(r"(?P<region_number>\d+[ab]?)", given_role_name)
-        given_match_name = re.search(r"(?P<region_name>[a-zA-Z_ ]+)", transform_role_name(given_role_name))
-        if given_match_name and given_match_name.group("region_name") == transformed_base :
-            return True
-        elif (
-            base_match
-            and "region_number" in base_match.groupdict()
-            and given_match_number
-            and "region_number" in given_match_number.groupdict()
-        ):
-            print(base_match.groupdict())
-            if base_match.group("region_number").lstrip("0") == given_match_number.group("region_number").lstrip("0"):
-                return True
-
 def has_user_role(member, role_name):
     for role in member.roles:
         if role.name == role_name:
             return True
     return False
-
-
-def is_channel_allowed_for_command(channel):
-    config = get_configuration(channel.guild.id)
-    if channel.name in config["GEOLOC_INPUT_CHANNELS"] or "*" in config["GEOLOC_INPUT_CHANNELS"] :
-        return True
-    else:
-        return False
 
 
 def generate_region_user_list(guild, region_name):
@@ -82,10 +46,10 @@ def generate_region_user_list(guild, region_name):
 
             if i == len(user_list)-1:
                 embed.add_field(name=".", value=newTxt, inline=True)
-
-        #print(embed)
         return embed
-    else : return False     
+    else :
+        return False
+
 
 async def contact_modos(self, guild, message):
     config = get_configuration(guild.id)
@@ -107,7 +71,8 @@ async def contact_modos(self, guild, message):
             await modo_channel.send("Erreur : je ne peux pas mentionner les modérateurs car le rôle @"+config["MODO_ROLE"]+" a disparu.")
             await modo_channel.send(message)
     else :
-        admin.send(message)
+        await admin.send(message)
+
 
 async def refresh_geoloc_list(self, guild, refresh_region=None):
     if guild.name == "Réseautonome":
@@ -151,6 +116,7 @@ async def refresh_geoloc_list(self, guild, refresh_region=None):
                 await display_channel.send(embed=region_user_msg)
             else:
                 print("Ignore empty region", region)
+
 
 async def set_user_region(self, member, first_time=False):
     config = get_configuration(member.guild.id)
@@ -204,12 +170,9 @@ async def set_user_region(self, member, first_time=False):
                 role = discord.utils.find(lambda r: r.name == config["CONFIRMED_ROLE_NAME"], member.guild.roles)
                 if role : await member.add_roles(role)
                 else : await contact_modos(self, member.guild, "Erreur: le rôle "+config["CONFIRMED_ROLE_NAME"]+" n'existe plus donc je ne peux plus le donner...")
-
-                #name = code+" - "+departement["name"]
                 right_role = None
                 for role in member.guild.roles :
                     if role.name.startswith(code) : right_role = role
-                #role = discord.utils.find(lambda r: r.name == name, member.guild.roles)
                 if right_role : await member.add_roles(right_role)
                 else : await contact_modos(self, member.guild, "Erreur, je n'ai pas pu ajouter le rôle *"+name+"* à "+member.name+" car le rôle ne semble pas exister.")
 

@@ -139,6 +139,22 @@ async def refresh_geoloc_list(self, guild, refresh_region=None):
             else:
                 print("Ignore empty region", region)
 
+async def contact_modos(self, member, message):
+    config = get_configuration(member.guild.id)
+
+    admin = self.get_user(config["ADMIN_ID"])
+    modos = discord.utils.find(lambda c: c.name == config["MODO_CHANNEL"], member.guild.channels)
+
+    if not modos :
+        await admin.send("\N{WARNING SIGN} Le salon '"+config["MODO_CHANNEL"]+"' n'existe pas, je ne peux plus contacter les modérateurs alors je m'adresse à toi.")
+    elif not member.guild.me.permissions_in(modos).send_messages :
+        modos = None
+        await admin.send("\N{WARNING SIGN} Je n'ai plus le droit d'écrire dans #"+config["MODO_CHANNEL"]+" du serveur "+member.guild.name+" donc je ne peux plus contacter les modérateurs donc je m'adresse à toi.")
+
+    if modos :
+        await modos.send(message)
+    else :
+        admin.send(message)
 
 async def set_user_region(self, member, first_time=False):
     config = get_configuration(member.guild.id)
@@ -146,12 +162,6 @@ async def set_user_region(self, member, first_time=False):
     regions = json.loads(open("regions.json").read())
 
     admin = self.get_user(config["ADMIN_ID"])  # Titou : 499530093539098624
-
-    modos = discord.utils.find(lambda c: c.name == config["MODO_CHANNEL"], member.guild.channels)
-    if not modos :
-        await admin.send("\N{WARNING SIGN} Le salon '"+config["MODO_CHANNEL"]+"' n'existe pas, je ne peux plus contacter les modérateurs !")
-    elif not member.guild.me.permissions_in(modos).send_messages :
-        await admin.send("\N{WARNING SIGN} Je n'ai plus le droit d'écrire dans #"+config["MODO_CHANNEL"]+" du serveur "+member.guild.name+" donc je ne peux plus contacter les modérateurs !")
 
     if first_time :
         await member.send("Salut et bienvenue sur le serveur **Réseautonome** ! Je suis le robot chargé de l'accueil des nouveaux. Pour pouvoir accéder au serveur tu vas devoir me dire où tu habites et si tu es mineur ou majeur.")
@@ -169,8 +179,8 @@ async def set_user_region(self, member, first_time=False):
         code = rep.content.upper()
         if len(code) == 1 : code = "0"+code
 
-    if code == "99" :     
-        if modos : await modos.send("L'utilisateur "+member.name+" me dit qu'il est étranger, je vous laisse lui mettre le bon rôle.")
+    if code == "99" :
+        await contact_modos(self, member, "L'utilisateur "+member.mention+" me dit qu'il est étranger, je vous laisse lui mettre le bon rôle.")
         await member.send("OK j'ai contacté l'équipe de modérateurs ils devraient prendre contact avec toi d'ici 24h.")
     else :
         departement = departements[code]
@@ -197,7 +207,7 @@ async def set_user_region(self, member, first_time=False):
 
                 role = discord.utils.find(lambda r: r.name == config["CONFIRMED_ROLE_NAME"], member.guild.roles)
                 if role : await member.add_roles(role)
-                elif modos : await modos.send("Erreur: le rôle "+config["CONFIRMED_ROLE_NAME"]+" n'existe plus donc je ne peux plus le donner...")
+                else : await contact_modos(self, member, "Erreur: le rôle "+config["CONFIRMED_ROLE_NAME"]+" n'existe plus donc je ne peux plus le donner...")
 
                 name = code+" - "+departement["name"]
                 right_role = None
@@ -205,20 +215,22 @@ async def set_user_region(self, member, first_time=False):
                     if role.name.startswith(code) : right_role = role
                 #role = discord.utils.find(lambda r: r.name == name, member.guild.roles)
                 if right_role : await member.add_roles(right_role)
-                elif modos : await modos.send("Erreur, je n'ai pas pu ajouter le rôle *"+name+"* à "+member.name+" car le rôle ne semble pas exister.")
+                else : await contact_modos(self, member, "Erreur, je n'ai pas pu ajouter le rôle *"+name+"* à "+member.name+" car le rôle ne semble pas exister.")
 
                 role = discord.utils.find(lambda r: r.name == region["name"], member.guild.roles)
                 if role :
                     await member.add_roles(role)
                     await refresh_geoloc_list(self, member.guild, refresh_region=region["name"])
-                elif modos : await modos.send("Erreur, je n'ai pas pu ajouter le rôle *"+region["name"]+"* à "+member.name+" car le rôle ne semble pas exister.")
+                else :
+                    await contact_modos(self, member, "Erreur, je n'ai pas pu ajouter le rôle *"+region["name"]+"* à "+member.name+" car le rôle ne semble pas exister.")
 
                 if config["REMOVE_NEWUSER_ROLE"] :
                     role = discord.utils.find(lambda r: r.name == config["NEWUSER_ROLE_NAME"], member.guild.roles)
                     if role :
                         if has_user_role(member, role.name):
                             await member.remove_roles(role)
-                    elif modos : await modos.send("Erreur: le rôle "+config["NEWUSER_ROLE_NAME"]+" n'existe plus ou a changé de nom")
+                    else :
+                        await contact_modos(self, member, "Erreur: le rôle "+config["NEWUSER_ROLE_NAME"]+" n'existe plus ou a changé de nom")
 
                 await member.send("OK maintenant écris moi `mineur` si tu as moins de 18 ans et `majeur` si tu as 18 ans ou plus :")
                 def check(m): return m.author == member
@@ -231,18 +243,19 @@ async def set_user_region(self, member, first_time=False):
                     if rep.content.lower() == "mineur" : await member.add_roles(role)
                     elif role in member.roles : await member.remove_roles(role)
                     
-                elif modos : await modos.send("Erreur, je n'ai pas pu ajouter le rôle *"+config["YOUNG_ROLE_NAME"]+"* à "+member.name+" car le rôle ne semble pas exister.")
+                else :
+                    await contact_modos(self, member, "Erreur, je n'ai pas pu ajouter le rôle *"+config["YOUNG_ROLE_NAME"]+"* à "+member.name+" car le rôle ne semble pas exister.")
 
                 await member.send("C'est tout bon, tu peux accéder au serveur !")
 
             else :
-                if modos : await modos.send(member.name+" a l'air de galérer avec avec l'ajout de rôle, vous pouvez peut-être voir pour l'aider si dans quelques minutes il n'a toujours pas de rôle")
+                await contact_modos(self, member, member.mention+" a l'air de galérer avec avec l'ajout de rôle, vous pouvez peut-être voir pour l'aider si dans quelques minutes il n'a toujours pas de rôle")
                 await member.send("Bon OK je on recommence.")
                 await set_user_region(self, member)
 
         except asyncio.TimeoutError:
-            if modos : await modos.send(member.name+" a l'air de galérer avec avec l'ajout de rôle, vous pouvez peut-être voir pour l'aider si dans quelques minutes il n'a toujours pas de rôle")
-            await member.send("Bon OK je te propose de repartir de zéro. Si vraiment tu galères tu peux contacter Titou#3777 qui est l'administrateur.")
+            await contact_modos(self, member, member.mention+" a l'air de galérer avec avec l'ajout de rôle, vous pouvez peut-être voir pour l'aider si dans quelques minutes il n'a toujours pas de rôle")
+            await member.send("Bon OK je te propose de repartir de zéro. Si vraiment tu galères tu peux contacter "+admin.mention+" qui est l'administrateur.")
             await set_user_region(self, member)
 
 

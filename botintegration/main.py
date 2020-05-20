@@ -46,16 +46,6 @@ def role_match(base_role_name, given_role_name):
             if base_match.group("region_number").lstrip("0") == given_match_number.group("region_number").lstrip("0"):
                 return True
 
-"""
-def get_needed_role(guild, role_name, strict=True, allowed_roles=[]):
-    for role in guild.roles:
-        if len(allowed_roles) == 0 or role.name in allowed_roles:
-            if strict and role.name == role_name:
-                return role
-            elif not strict and role_match(role.name, role_name):
-                return role
-"""
-
 def has_user_role(member, role_name):
     for role in member.roles:
         if role.name == role_name:
@@ -101,16 +91,21 @@ async def contact_modos(self, guild, message):
     config = get_configuration(guild.id)
 
     admin = self.get_user(config["ADMIN_ID"])
-    modos = discord.utils.find(lambda c: c.name == config["MODO_CHANNEL"], guild.channels)
+    modo_channel = discord.utils.find(lambda c: c.name == config["MODO_CHANNEL"], guild.channels)
+    modo_role = discord.utils.find(lambda r: r.name == config["MODO_ROLE"], guild.roles)
 
-    if not modos :
+    if not modo_channel :
         await admin.send("\N{WARNING SIGN} Le salon '"+config["MODO_CHANNEL"]+"' n'existe pas, je ne peux plus contacter les modérateurs alors je m'adresse à toi.")
-    elif not guild.me.permissions_in(modos).send_messages :
-        modos = None
+    elif not guild.me.permissions_in(modo_channel).send_messages :
+        modo_channel = None
         await admin.send("\N{WARNING SIGN} Je n'ai plus le droit d'écrire dans #"+config["MODO_CHANNEL"]+" du serveur "+guild.name+" donc je ne peux plus contacter les modérateurs donc je m'adresse à toi.")
 
-    if modos :
-        await modos.send(message)
+    if modo_channel :
+        if modo_role :
+            await modo_channel.send(modo_role.mention+", "+message)
+        else:
+            await modo_channel.send("Erreur : je ne peux pas mentionner les modérateurs car le rôle @"+config["MODO_ROLE"]+" a disparu.")
+            await modo_channel.send(message)
     else :
         admin.send(message)
 
@@ -210,7 +205,7 @@ async def set_user_region(self, member, first_time=False):
                 if role : await member.add_roles(role)
                 else : await contact_modos(self, member.guild, "Erreur: le rôle "+config["CONFIRMED_ROLE_NAME"]+" n'existe plus donc je ne peux plus le donner...")
 
-                name = code+" - "+departement["name"]
+                #name = code+" - "+departement["name"]
                 right_role = None
                 for role in member.guild.roles :
                     if role.name.startswith(code) : right_role = role

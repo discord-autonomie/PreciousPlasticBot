@@ -73,8 +73,6 @@ async def contact_modos(self, guild, message):
 
 
 async def refresh_geoloc_list(self, guild, refresh_region=None):
-    if guild.name == "Réseautonome":
-        return
     config = get_configuration(guild.id)
 
     display_channel = discord.utils.find(lambda m: m.name == config["GEOLOC_DISPLAY_CHANNEL"], guild.channels)

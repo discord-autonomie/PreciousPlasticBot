@@ -28,25 +28,30 @@ def generate_region_user_list(guild, region_name):
     region_emoji = config["DISPLAY_REGION_EMOJI"]
     role = discord.utils.find(lambda r: r.name == region_name, guild.roles)
     user_list = [user.mention for user in role.members]
-    if len(user_list) > 0 or config["DISPLAY_EMPTY_REGION"]:
-        embed = discord.Embed(description=region_emoji+" "+region_name, color=0x50bdfe)
-        txt = ""
-        newTxt = ""
-        for i in range(len(user_list)) :
-            newTxt += " "+user_list[i]
-            if len(newTxt) > 1000 :
-                if len(embed)+len(newTxt) < 6000 :
-                    embed.add_field(name=".", value=txt, inline=True)
-                    txt = user_list[i]
-                    newTxt = user_list[i]
-                else :
-                    break
+    embed = discord.Embed(description=region_emoji+" "+region_name, color=0x50bdfe)
+    if len(user_list) == 0 :
+        if config["DISPLAY_EMPTY_REGION"]:
+            return embed
+        else :
+            return None
 
-            if i == len(user_list)-1:
-                embed.add_field(name=".", value=newTxt, inline=True)
-        return embed
-    else :
-        return False
+    txt = ""
+    for i in range(45):
+        if len(user_list) == 0 :
+            break
+        txt += " "+user_list.pop()
+    embed.add_field(name=".", value=txt, inline=True)
+
+    if len(user_list) > 0 :
+        txt = ""
+        for i in range(45):
+            if len(user_list) == 0 :
+                break
+            txt += " "+user_list.pop()
+        embed.add_field(name=".", value=txt, inline=True)
+
+    return embed
+
 
 
 async def contact_modos(self, guild, message):
@@ -113,6 +118,7 @@ async def refresh_geoloc_list(self, guild, refresh_region=None):
 
 
 async def set_user_region(self, member, first_time=False):
+    print ("\nset", member.name, "region")
     config = get_configuration(member.guild.id)
     departements = json.loads(open("departements.json").read())                                                  
     regions = json.loads(open("regions.json").read())
@@ -156,20 +162,25 @@ async def set_user_region(self, member, first_time=False):
                 for role in member.roles :
                     if role.color.to_rgb() == config["REGION_ROLE_COLOR"] :
                         await member.remove_roles(role)
+                        print ("removing role", role.name)
                         await refresh_geoloc_list(self, member.guild, refresh_region=role.name)
 
                     if role.color.to_rgb() == config["DEPARTEMENT_ROLE_COLOR"]:
                         await member.remove_roles(role)
+                        print ("removing role", role.name)
 
                 right_role = None
                 for role in member.guild.roles :
                     if role.name.startswith(code) : right_role = role
-                if right_role : await member.add_roles(right_role)
+                if right_role :
+                    await member.add_roles(right_role)
+                    print ("adding role", right_role.name)
                 else : await contact_modos(self, member.guild, "Erreur, je n'ai pas pu ajouter le rôle *"+name+"* à "+member.name+" car le rôle ne semble pas exister.")
 
                 role = discord.utils.find(lambda r: r.name == region["name"], member.guild.roles)
                 if role :
                     await member.add_roles(role)
+                    print ("adding role", role.name)
                     await refresh_geoloc_list(self, member.guild, refresh_region=region["name"])
                 else :
                     await contact_modos(self, member.guild, "Erreur, je n'ai pas pu ajouter le rôle *"+region["name"]+"* à "+member.name+" car le rôle ne semble pas exister.")
@@ -179,6 +190,8 @@ async def set_user_region(self, member, first_time=False):
                     if role :
                         if has_user_role(member, role.name):
                             await member.remove_roles(role)
+                            print ("removing role", role.name)
+
                     else :
                         await contact_modos(self, member.guild, "Erreur: le rôle "+config["NEWUSER_ROLE_NAME"]+" n'existe plus ou a changé de nom")
 
@@ -190,8 +203,12 @@ async def set_user_region(self, member, first_time=False):
                     rep = await client.wait_for('message', check=check)
                 role = discord.utils.find(lambda r: r.name == config["YOUNG_ROLE_NAME"], member.guild.roles)
                 if role :
-                    if rep.content.lower() == "mineur" : await member.add_roles(role)
-                    elif role in member.roles : await member.remove_roles(role)
+                    if rep.content.lower() == "mineur" :
+                        await member.add_roles(role)
+                        print ("adding role", role.name)
+                    elif role in member.roles :
+                        await member.remove_roles(role)
+                        print ("removing role", role.name)
                     
                 else :
                     await contact_modos(self, member.guild, "Erreur, je n'ai pas pu ajouter le rôle *"+config["YOUNG_ROLE_NAME"]+"* à "+member.name+" car le rôle ne semble pas exister.")
@@ -202,6 +219,7 @@ async def set_user_region(self, member, first_time=False):
                 else :
                     if not confirmedRole in member.roles :
                         await member.add_roles(confirmedRole)
+                        print ("adding role", confirmedRole.name)
                         if config["WELCOME_ANOUNCE"] :
                             chan = discord.utils.find(lambda c: c.name == config["WELCOME_CHANNEL"], member.guild.channels)
                             if chan :

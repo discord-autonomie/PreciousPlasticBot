@@ -2,8 +2,6 @@ import asyncio
 import discord
 from discord import ChannelType
 import os
-import re
-import unidecode
 import json
 
 from config import get_configuration
@@ -97,17 +95,15 @@ async def refresh_geoloc_list(self, guild, refresh_region=None):
         elif message.author.id == self.user.id:
             content = message.embeds[0].to_dict()["description"]
             if content.startswith(region_emoji):
-                res = re.match(f"^{region_emoji}\s(?P<region_name>.+)$", content)
-                if res:
-                    region_name = res.groupdict()["region_name"]
-                    if region_name in region_list and (refresh_region == None or region_name == refresh_region):
-                        region_user_msg = generate_region_user_list(guild, region_name)
-                        if region_user_msg:
-                            print("Editing region", region_name)
-                            await message.edit(embed=region_user_msg)
-                            region_list.remove(region_name)
-                        else:
-                            await message.delete()
+                region_name = content[len(region_emoji)+1:]
+                if region_name in region_list and (refresh_region == None or region_name == refresh_region):
+                    region_user_msg = generate_region_user_list(guild, region_name)
+                    if region_user_msg:
+                        print("Editing region", region_name)
+                        await message.edit(embed=region_user_msg)
+                        region_list.remove(region_name)
+                    else:
+                        await message.delete()
     for region in region_list:
         if refresh_region is None or region == refresh_region:
             region_user_msg = generate_region_user_list(guild, region)
@@ -213,7 +209,7 @@ async def set_user_region(self, member, first_time=False):
                             if chan :
                                 await chan.send("Bienvenue à "+member.mention)
                             else :
-                                await contact_modos("Erreur: le salon **"+config["WELCOME_CHANNEL"]+"** n'existe pas pour dire bienvenue.")
+                                await contact_modos(self, member.guild, "Erreur: le salon **"+config["WELCOME_CHANNEL"]+"** n'existe pas pour dire bienvenue.")
 
 
                 await member.send("C'est tout bon, tu peux accéder au serveur !")
@@ -253,20 +249,14 @@ class MyClient(discord.Client):
 
     async def on_member_join(self, member):
         config = get_configuration(member.guild.id)
-        admin = self.get_user(config["ADMIN_ID"])
-
-        modos = discord.utils.find(lambda c: c.name == config["MODO_CHANNEL"], member.guild.channels)
-        if not modos :
-            await admin.send("\N{WARNING SIGN} Le salon '"+config["MODO_CHANNEL"]+"' n'existe pas, je ne peux plus contacter les modérateurs !")
-        elif member.guild.me.permissions_in(modos).send_messages == False :
-            await admin.send("\N{WARNING SIGN} Je n'ai plus le droit d'écrire dans #"+config["MODO_CHANNEL"]+" du serveur "+member.guild.name+" donc je ne peux plus contacter les modérateurs !")
 
         if config["ADD_NEWUSER_ROLE"] :
             role = discord.utils.find(lambda r: r.name == config["NEWUSER_ROLE_NAME"], member.guild.roles)
             if role :
-                if not has_user_role(member, role.name): await member.add_roles(role)
-            elif modos :
-                modos.send("Ereur: le rôle "+config["NEWUSER_ROLE_NAME"]+" n'existe plus ou a changé de nom.")
+                if not has_user_role(member, role.name):
+                    await member.add_roles(role)
+            else :
+               await contact_modos(self, member.guild, "Ereur: le rôle "+config["NEWUSER_ROLE_NAME"]+" n'existe plus ou a changé de nom.")
 
         await set_user_region(self, member, first_time=True)
 

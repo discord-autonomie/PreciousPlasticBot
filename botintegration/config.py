@@ -19,7 +19,8 @@ CONFIGURATION = {
         "MODO_CHANNEL": "infos-modérateurs",
         "MODO_ROLE": "Modérateurs",
         "WELCOME_ANOUNCE": True,
-        "WELCOME_CHANNEL": "blabla-libre-autonomie"
+        "WELCOME_CHANNEL": "blabla-libre-autonomie",
+        "LOG_CHANNEL": "logs-bot-intégration"
     }
 }
 

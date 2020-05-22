@@ -79,11 +79,11 @@ async def refresh_geoloc_list(self, guild):
             if len(role.members) == 0 :
                 txt = "Personne \N{DISAPPOINTED BUT RELIEVED FACE}"
             else :
-                txt = " | ".join([str(user) for user in role.members])
+                txt = " | ".join(sorted([str(user) for user in role.members]))
                 if len(txt) > 2048 :
                     txt = txt[:2042]+" [...]"
 
-            if set(txt.split(" | ")) != set(message.embeds[0].description.split(" | ")):
+            if txt != message.embeds[0].description:
                 await log(self, guild, "Je modifie la liste **"+departement_code+" - "+departements[departement_code]["name"]+"**")
                 embed = discord.Embed(title=departement_code+" - "+departements[departement_code]["name"], description=txt, color=0x50bdfe)
                 await message.edit(embed=embed)
@@ -109,7 +109,7 @@ async def set_user_region(self, member, first_time=False, rappel=0):
         code = rep.content.upper()
         if len(code) == 1 : code = "0"+code
         while code not in departements and code != "99" :
-            await member.send("Je ne connais pas ce numéro. Envoies `99` si tu es étranger sinon voici les numéros de départements français : "+", ".join(departements.keys()))
+            await member.send("Je ne connais pas ce numéro. Envoies `99` si tu es étranger sinon voici les numéros de départements français : "+", ".join(sorted(departements.keys())))
             rep = await client.wait_for('message', check=check, timeout=60*60*24)
             code = rep.content.upper()
             if len(code) == 1 : code = "0"+code
@@ -223,9 +223,6 @@ async def set_user_region(self, member, first_time=False, rappel=0):
             await member.send("Cela fait 72h que tu as rejoint le serveur et tu n'as toujours pas répondu aux questions. Je vais donc t'exclure. Tu pourras néanmoins rejoindre le serveur à nouveau avec un lien d'invitation.")
             await member.kick(reason="Pas de réponses aux questions d'accueil durant 72h.")
             await log(self, member.guild, "J'ai exclu "+member.mention+" après 72h sans réponse.")
-
-            
-
 
 
 class MyClient(discord.Client):

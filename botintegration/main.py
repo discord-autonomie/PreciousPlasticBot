@@ -89,8 +89,11 @@ async def refresh_geoloc_list(self, guild):
                 await message.edit(embed=embed)
 
 
-async def set_user_region(self, member, first_time=False):
-    await log(self, member.guild, "Je demande à "+member.mention+" sa région")
+async def set_user_region(self, member, first_time=False, rappel=0):
+    if rappel == 0 :
+        await log(self, member.guild, "Je demande à "+member.mention+" sa région")
+    else :
+        await log(self, member.guild, "Je redemande à "+member.mention+" sa région, rappel n°"+str(rappel))
     config = get_configuration(member.guild.id)
 
     admin = self.get_user(config["ADMIN_ID"])  # Titou : 499530093539098624
@@ -100,32 +103,38 @@ async def set_user_region(self, member, first_time=False):
 
     await member.send("Envoie moi le numéro de ton département (99 si tu es étranger) :")
 
-    def check(m): return m.author == member
-    rep = await client.wait_for('message', check=check)
-    code = rep.content.upper()
-    if len(code) == 1 : code = "0"+code
-    while code not in departements and code != "99" :
-        await member.send("Je ne connais pas ce numéro. Envoies `99` si tu es étranger sinon voici les numéros de départements français : "+", ".join(departements.keys()))
-        rep = await client.wait_for('message', check=check)
+    try :
+        def check(m): return m.channel.type == discord.ChannelType.private and m.author == member
+        rep = await client.wait_for('message', check=check, timeout=60*60*24)
         code = rep.content.upper()
         if len(code) == 1 : code = "0"+code
+        while code not in departements and code != "99" :
+            await member.send("Je ne connais pas ce numéro. Envoies `99` si tu es étranger sinon voici les numéros de départements français : "+", ".join(departements.keys()))
+            rep = await client.wait_for('message', check=check, timeout=60*60*24)
+            code = rep.content.upper()
+            if len(code) == 1 : code = "0"+code
 
-    if code == "99" :
-        await contact_modos(self, member.guild, "L'utilisateur "+member.mention+" me dit qu'il est étranger, je vous laisse lui mettre le bon rôle.")
-        await member.send("OK j'ai contacté l'équipe de modérateurs ils devraient prendre contact avec toi d'ici 24h.")
-    else :
-        departement = departements[code]
-        region = regions[departement["region_code"]]
-        txt = "Je vais t'ajouter les rôles suivants :\nDépartement : **"+departement["name"]+"**\nRégion : **"+region["name"]+"**\nUtilise les réactions pour me dire si tu es d'accord."
-        msg = await member.send(txt)
-        reacts = ["\N{WHITE HEAVY CHECK MARK}", "\N{CROSS MARK}"]
-        for r in reacts : await msg.add_reaction(r)
+        if code == "99" :
+            await contact_modos(self, member.guild, "L'utilisateur "+member.mention+" me dit qu'il est étranger, je vous laisse lui mettre le bon rôle.")
+            await member.send("OK j'ai contacté l'équipe de modérateurs ils devraient prendre contact avec toi d'ici 24h.")
+        else :
+            departement = departements[code]
+            region = regions[departement["region_code"]]
+            txt = "Je vais t'ajouter les rôles suivants :\nDépartement : **"+departement["name"]+"**\nRégion : **"+region["name"]+"**\nUtilise les réactions pour me dire si tu es d'accord."
+            msg = await member.send(txt)
+            reacts = ["\N{WHITE HEAVY CHECK MARK}", "\N{CROSS MARK}"]
+            for r in reacts : await msg.add_reaction(r)
 
-        def check(reaction, user):
-            return user == member and str(reaction.emoji) in reacts
+            def checkR(reaction, user):
+                return user == member and str(reaction.emoji) in reacts
 
-        try:
-            reaction, user = await client.wait_for('reaction_add', timeout=60.0, check=check)
+            try:
+                reaction, user = await client.wait_for('reaction_add', timeout=60, check=checkR)
+            except asyncio.TimeoutError:
+                await contact_modos(self, member.guild, member.mention+" a l'air de galérer avec avec l'ajout de rôle, vous pouvez peut-être voir pour l'aider si dans quelques minutes il n'a toujours pas de rôle")
+                await member.send("Bon OK je te propose de repartir de zéro. Si vraiment tu galères tu peux contacter "+admin.mention+" qui est l'administrateur.")
+                await set_user_region(self, member)
+                return
             if str(reaction.emoji) == "\N{WHITE HEAVY CHECK MARK}" :
                 async with member.typing():
                     for role in member.roles :
@@ -165,11 +174,10 @@ async def set_user_region(self, member, first_time=False):
                             await contact_modos(self, member.guild, "Erreur: le rôle "+config["NEWUSER_ROLE_NAME"]+" n'existe plus ou a changé de nom")
 
                 await member.send("OK maintenant écris moi `mineur` si tu as moins de 18 ans et `majeur` si tu as 18 ans ou plus :")
-                def check(m): return m.author == member
-                rep = await client.wait_for('message', check=check)
+                rep = await client.wait_for('message', check=check, timeout=60*60*24)
                 while rep.content.lower() != "mineur" and rep.content.lower() != "majeur" :
                     await member.send("Je n'ai pas compris tu peux juste écrire `mineur` ou `majeur` stp.")
-                    rep = await client.wait_for('message', check=check)
+                    rep = await client.wait_for('message', check=check, timeout=60*60*24)
                 role = discord.utils.get(member.guild.roles, name=config["YOUNG_ROLE_NAME"])
                 if role :
                     if rep.content.lower() == "mineur" :
@@ -204,11 +212,19 @@ async def set_user_region(self, member, first_time=False):
                 await contact_modos(self, member.guild, member.mention+" a l'air de galérer avec avec l'ajout de rôle, vous pouvez peut-être voir pour l'aider si dans quelques minutes il n'a toujours pas de rôle")
                 await member.send("Bon OK je on recommence.")
                 await set_user_region(self, member)
+    except asyncio.TimeoutError :
+        if rappel == 0 :
+            await member.send("Désolé de te déranger mais ça fait 24h que tu ne m'as pas répondu. Il faut obligatoirement répondre à ces questions pour accéder au serveur. Ceci est le premier rappel. **Si je n'ai pas de réponse dans 48h tu seras exclu du serveur.**")
+            await set_user_region(self, member, rappel=1)
+        if rappel == 1 :
+            await member.send("Désolé de te déranger à nouveau mais ça fait 24h que tu ne m'as pas répondu. Il faut obligatoirement répondre à ces questions pour accéder au serveur. Ceci est le deuxième rappel. **Si je n'ai pas de réponse dans 24h tu seras exclu de ce serveur.**")
+            await set_user_region(self, member, rappel=2)
+        if rappel == 2 :
+            await member.send("Cela fait 72h que tu as rejoint le serveur et tu n'as toujours pas répondu aux questions. Je vais donc t'exclure. Tu pourras néanmoins rejoindre le serveur à nouveau avec un lien d'invitation.")
+            await member.kick(reason="Pas de réponses aux questions d'accueil durant 72h.")
+            await log(self, member.guild, "J'ai exclu "+member.mention+" après 72h sans réponse.")
 
-        except asyncio.TimeoutError:
-            await contact_modos(self, member.guild, member.mention+" a l'air de galérer avec avec l'ajout de rôle, vous pouvez peut-être voir pour l'aider si dans quelques minutes il n'a toujours pas de rôle")
-            await member.send("Bon OK je te propose de repartir de zéro. Si vraiment tu galères tu peux contacter "+admin.mention+" qui est l'administrateur.")
-            await set_user_region(self, member)
+            
 
 
 
@@ -216,11 +232,15 @@ class MyClient(discord.Client):
 
     async def on_ready(self):
         for guild in self.guilds:
+            if guild.id == 525004499748651018:
+                continue
             await log(self, guild, "Je viens de redémarrer.")
             if get_configuration(guild.id)["RUN_SYNC_ON_STARTUP"]:
                 await refresh_geoloc_list(self, guild)
 
     async def on_message(self, message):
+        if message.guild and message.guild.id == 525004499748651018:
+            return
         config = None
         if message.guild:
             config = get_configuration(message.guild.id)
@@ -231,6 +251,8 @@ class MyClient(discord.Client):
                 if config["REMOVE_GEOLOCS_MESSAGES"]:  await message.delete()
 
     async def on_member_join(self, member):
+        if member.guild.id == 525004499748651018:
+            return
         config = get_configuration(member.guild.id)
 
         if config["ADD_NEWUSER_ROLE"] :

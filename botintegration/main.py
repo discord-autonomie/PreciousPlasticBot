@@ -83,7 +83,7 @@ async def refresh_geoloc_list(self, guild):
                 if len(txt) > 2048 :
                     txt = txt[:2042]+" [...]"
 
-            if txt != message.embeds[0].description:
+            if set(txt.split(" | ")) != set(message.embeds[0].description.split(" | ")):
                 await log(self, guild, "Je modifie la liste **"+departement_code+" - "+departements[departement_code]["name"]+"**")
                 embed = discord.Embed(title=departement_code+" - "+departements[departement_code]["name"], description=txt, color=0x50bdfe)
                 await message.edit(embed=embed)

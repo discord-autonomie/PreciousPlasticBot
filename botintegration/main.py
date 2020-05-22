@@ -232,15 +232,11 @@ class MyClient(discord.Client):
 
     async def on_ready(self):
         for guild in self.guilds:
-            if guild.id == 525004499748651018:
-                continue
             await log(self, guild, "Je viens de redémarrer.")
             if get_configuration(guild.id)["RUN_SYNC_ON_STARTUP"]:
                 await refresh_geoloc_list(self, guild)
 
     async def on_message(self, message):
-        if message.guild and message.guild.id == 525004499748651018:
-            return
         config = None
         if message.guild:
             config = get_configuration(message.guild.id)
@@ -251,8 +247,6 @@ class MyClient(discord.Client):
                 if config["REMOVE_GEOLOCS_MESSAGES"]:  await message.delete()
 
     async def on_member_join(self, member):
-        if member.guild.id == 525004499748651018:
-            return
         config = get_configuration(member.guild.id)
 
         if config["ADD_NEWUSER_ROLE"] :

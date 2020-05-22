@@ -60,7 +60,7 @@ async def refresh_geoloc_list(self, guild):
         await contact_modos("Erreur: je ne peux pas afficher la liste dans "+display_channel.mention+" car je n'ai pas les permission d'y écrire.")
         return
 
-    async for message in display_channel.history(limit=len(departements) + 20, oldest_first=True):
+    async for message in display_channel.history(limit=len(departements) + 30, oldest_first=True):
         if message.author.id != self.user.id :
             await message.delete()
             continue

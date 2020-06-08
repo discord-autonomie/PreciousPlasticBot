@@ -3,6 +3,7 @@ import discord
 import os
 import json
 import time
+from datetime import datetime
 
 from config import get_configuration
 
@@ -90,20 +91,25 @@ async def refresh_geoloc_list(self, guild):
                 await message.edit(embed=embed)
 
 
-async def set_user_region(self, member, first_time=False, rappel=0):
-    if rappel == 0 :
-        await log(self, member.guild, "Je demande à "+member.mention+" sa région")
+async def set_user_region(self, member, first_time=False, rappel=0, just_wait=False):
+    if just_wait:
+        await log(self, member.guild, "J'attends une réponse de "+member.mention)
     else :
-        await log(self, member.guild, "Je redemande à "+member.mention+" sa région, rappel n°"+str(rappel))
+        if rappel == 0 :
+            await log(self, member.guild, "Je demande à "+member.mention+" sa région")
+        else :
+            await log(self, member.guild, "Je redemande à "+member.mention+" sa région, rappel n°"+str(rappel))
+
     config = get_configuration(member.guild.id)
 
     admin = self.get_user(config["ADMIN_ID"])  # Titou : 499530093539098624
 
     try :
-        if first_time :
-            await member.send("Salut et bienvenue sur le serveur **Réseautonome** ! Je suis le robot chargé de l'accueil des nouveaux. Pour pouvoir accéder au serveur tu vas devoir me dire où tu habites et si tu es mineur ou majeur.")
+        if not just_wait :
+            if first_time :
+                await member.send("Salut et bienvenue sur le serveur **Réseautonome** ! Je suis le robot chargé de l'accueil des nouveaux. Pour pouvoir accéder au serveur tu vas devoir me dire où tu habites et si tu es mineur ou majeur.")
 
-        await member.send("Envoie moi le numéro de ton département (99 si tu es étranger) :")
+            await member.send("Envoie moi le numéro de ton département (99 si tu es étranger) :")
 
         def check(m): return m.channel.type == discord.ChannelType.private and m.author == member
         rep = await client.wait_for('message', check=check, timeout=60*60*24)
@@ -235,8 +241,21 @@ class MyClient(discord.Client):
 
     async def on_ready(self):
         for guild in self.guilds:
+            
             await log(self, guild, "Je viens de redémarrer.")
-            if get_configuration(guild.id)["RUN_SYNC_ON_STARTUP"]:
+
+            config = get_configuration(guild.id)
+
+            if config["RUN_SYNC_ON_STARTUP"]:
+                for member in guild.members :
+                    if config["NEWUSER_ROLE_NAME"] in [role.name for role in member.roles] :
+                        h = (datetime.now() - member.joined_at).total_seconds()/60/60
+                        if h >= 72 :
+                            await member.kick(reason="Pas de signes de vie depuis "+str(int(h/24))+" jours")
+                            await log(self, member.guild, "J'expulse "+member.mention)
+                        else:
+                            asyncio.ensure_future(set_user_region(self, member, rappel=int(h/24), just_wait=True))
+
                 await refresh_geoloc_list(self, guild)
 
     async def on_message(self, message):
@@ -247,7 +266,8 @@ class MyClient(discord.Client):
             geoloc_command = config["GEOLOC_COMMAND_NAME"]
             if message.content.startswith(geoloc_command):
                 await set_user_region(self, message.author)
-                if config["REMOVE_GEOLOCS_MESSAGES"]:  await message.delete()
+                if config["REMOVE_GEOLOCS_MESSAGES"]:
+                    await message.delete()
 
     async def on_member_join(self, member):
         config = get_configuration(member.guild.id)

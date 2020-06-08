@@ -227,7 +227,7 @@ async def set_user_region(self, member, first_time=False, rappel=0):
                 await log(self, member.guild, "J'ai exclu "+member.mention+" après 72h sans réponse.")
 
     except discord.Forbidden :
-        await contact_modos(self, member.guild, "Je n'ai pas la permission de contacter "+user.mention+" par MP, merci de gérer ses rôles manuellement.")
+        await contact_modos(self, member.guild, "Je n'ai pas la permission de contacter "+member.mention+" par MP, merci de gérer ses rôles manuellement.")
 
 
 

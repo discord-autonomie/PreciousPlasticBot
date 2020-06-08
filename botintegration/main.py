@@ -1,6 +1,5 @@
 import asyncio
 import discord
-from discord import ChannelType
 import os
 import json
 import time
@@ -13,7 +12,9 @@ regions = json.loads(open("regions.json").read())
 
 async def log(self, guild, message) :
     config = get_configuration(guild.id)
-    print (time.strftime('[%d/%m/%Y %H:%M:%S]', time.localtime()), guild.name, ":", message)
+    with open("logs.txt", "a") as f : 
+        f.write(time.strftime('[%d/%m/%Y %H:%M:%S] ', time.localtime())+guild.name+" : "+message+"\n")
+
     if config["LOG_CHANNEL"] :
         channel = discord.utils.find(lambda c: c.name == config["LOG_CHANNEL"], guild.channels)
         if channel :
@@ -60,7 +61,7 @@ async def refresh_geoloc_list(self, guild):
         await contact_modos("Erreur: je ne peux pas afficher la liste dans "+display_channel.mention+" car je n'ai pas les permission d'y écrire.")
         return
 
-    async for message in display_channel.history(limit=len(departements) + 20, oldest_first=True):
+    async for message in display_channel.history(limit=len(departements) + 30, oldest_first=True):
         if message.author.id != self.user.id :
             await message.delete()
             continue
@@ -98,12 +99,12 @@ async def set_user_region(self, member, first_time=False, rappel=0):
 
     admin = self.get_user(config["ADMIN_ID"])  # Titou : 499530093539098624
 
-    if first_time :
-        await member.send("Salut et bienvenue sur le serveur **Réseautonome** ! Je suis le robot chargé de l'accueil des nouveaux. Pour pouvoir accéder au serveur tu vas devoir me dire où tu habites et si tu es mineur ou majeur.")
-
-    await member.send("Envoie moi le numéro de ton département (99 si tu es étranger) :")
-
     try :
+        if first_time :
+            await member.send("Salut et bienvenue sur le serveur **Réseautonome** ! Je suis le robot chargé de l'accueil des nouveaux. Pour pouvoir accéder au serveur tu vas devoir me dire où tu habites et si tu es mineur ou majeur.")
+
+        await member.send("Envoie moi le numéro de ton département (99 si tu es étranger) :")
+
         def check(m): return m.channel.type == discord.ChannelType.private and m.author == member
         rep = await client.wait_for('message', check=check, timeout=60*60*24)
         code = rep.content.upper()
@@ -207,22 +208,27 @@ async def set_user_region(self, member, first_time=False, rappel=0):
 
                 await member.send("C'est tout bon, tu peux accéder au serveur !")
 
-
             else :
                 await contact_modos(self, member.guild, member.mention+" a l'air de galérer avec avec l'ajout de rôle, vous pouvez peut-être voir pour l'aider si dans quelques minutes il n'a toujours pas de rôle")
                 await member.send("Bon OK je on recommence.")
                 await set_user_region(self, member)
+                
     except asyncio.TimeoutError :
-        if rappel == 0 :
-            await member.send("Désolé de te déranger mais ça fait 24h que tu ne m'as pas répondu. Il faut obligatoirement répondre à ces questions pour accéder au serveur. Ceci est le premier rappel. **Si je n'ai pas de réponse dans 48h tu seras exclu du serveur.**")
-            await set_user_region(self, member, rappel=1)
-        if rappel == 1 :
-            await member.send("Désolé de te déranger à nouveau mais ça fait 24h que tu ne m'as pas répondu. Il faut obligatoirement répondre à ces questions pour accéder au serveur. Ceci est le deuxième rappel. **Si je n'ai pas de réponse dans 24h tu seras exclu de ce serveur.**")
-            await set_user_region(self, member, rappel=2)
-        if rappel == 2 :
-            await member.send("Cela fait 72h que tu as rejoint le serveur et tu n'as toujours pas répondu aux questions. Je vais donc t'exclure. Tu pourras néanmoins rejoindre le serveur à nouveau avec un lien d'invitation.")
-            await member.kick(reason="Pas de réponses aux questions d'accueil durant 72h.")
-            await log(self, member.guild, "J'ai exclu "+member.mention+" après 72h sans réponse.")
+        if config["NEWUSER_ROLE_NAME"] in [r.name for r in member.roles] :
+            if rappel == 0 :
+                await member.send("Désolé de te déranger mais ça fait 24h que tu ne m'as pas répondu. Il faut obligatoirement répondre à ces questions pour accéder au serveur. Ceci est le premier rappel. **Si je n'ai pas de réponse dans 48h tu seras exclu du serveur.**")
+                await set_user_region(self, member, rappel=1)
+            if rappel == 1 :
+                await member.send("Désolé de te déranger à nouveau mais ça fait 24h que tu ne m'as pas répondu. Il faut obligatoirement répondre à ces questions pour accéder au serveur. Ceci est le deuxième rappel. **Si je n'ai pas de réponse dans 24h tu seras exclu de ce serveur.**")
+                await set_user_region(self, member, rappel=2)
+            if rappel == 2 :
+                await member.send("Cela fait 72h que tu as rejoint le serveur et tu n'as toujours pas répondu aux questions. Je vais donc t'exclure. Tu pourras néanmoins rejoindre le serveur à nouveau avec un lien d'invitation.")
+                await member.kick(reason="Pas de réponses aux questions d'accueil durant 72h.")
+                await log(self, member.guild, "J'ai exclu "+member.mention+" après 72h sans réponse.")
+
+    except discord.Forbidden :
+        await contact_modos(self, member.guild, "Je n'ai pas la permission de contacter "+user.mention+" par MP, merci de gérer ses rôles manuellement.")
+
 
 
 class MyClient(discord.Client):
